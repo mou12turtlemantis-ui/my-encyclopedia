@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>線上圖鑑電子書</title>
+  <style>
+    body { font-family: "Microsoft JhengHei", sans-serif; display: flex; flex-direction: column; align-items: center; background: #f9f9f9; margin: 0; padding: 20px; }
+    .card { text-align: center; background: #fff; padding: 20px; border-radius: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); max-width: 400px; margin-bottom: 20px; }
+    img { width: 250px; height: 250px; object-fit: cover; border-radius: 10px; }
+    h2 { margin: 15px 0 10px; color: #333; }
+    p { color: #555; }
+    .buttons { margin-top: 20px; }
+    button { padding: 8px 16px; margin: 5px; border: none; border-radius: 8px; background: #4CAF50; color: white; cursor: pointer; }
+    button:hover { background: #45a049; }
+    .danger { background: #d9534f; }
+    .danger:hover { background: #c9302c; }
+    .form { background: #fff; padding: 15px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); max-width: 400px; margin-top: 20px; }
+    input, textarea { width: 100%; margin: 5px 0; padding: 8px; border-radius: 6px; border: 1px solid #ccc; }
+    .search-box { margin: 15px 0; text-align: center; }
+    select { padding: 6px; border-radius: 6px; border: 1px solid #ccc; margin-top: 15px; }
+  </style>
+</head>
+<body>
+
+  <div class="card">
+    <img id="image" src="" alt="圖片">
+    <h2 id="title"></h2>
+    <p id="description"></p>
+    <div class="buttons">
+      <button onclick="prevPage()">上一頁</button>
+      <button onclick="nextPage()">下一頁</button>
+      <button onclick="editEntry()">修改</button>
+      <button class="danger" onclick="deleteEntry()">刪除</button>
+      <button onclick="randomEntry()">🎲 抽籤</button>
+    </div>
+  </div>
+
+  <!-- 搜尋功能 -->
+  <div class="search-box">
+    <input type="text" id="searchInput" placeholder="輸入名稱搜尋">
+    <button onclick="searchEntry()">搜尋</button>
+  </div>
+
+  <!-- 下拉選單 -->
+  <div>
+    <label for="dropdown">快速跳轉：</label>
+    <select id="dropdown" onchange="jumpToEntry()">
+      <option value="">請選擇圖鑑</option>
+    </select>
+  </div>
+
+  <!-- 新增/修改表單 -->
+  <div class="form">
+    <h3 id="formTitle">新增 / 修改 圖鑑</h3>
+    <input type="text" id="name" placeholder="名稱">
+    <textarea id="desc" placeholder="說明"></textarea>
+    <input type="file" id="imgInput" accept="image/*">
+    <button onclick="saveEntry()">儲存</button>
+  </div>
+
+  <script>
+    let encyclopedia = JSON.parse(localStorage.getItem("encyclopedia")) || [];
+    let index = 0;
+    let editing = false; // 是否在修改模式
+
+    function showPage() {
+      if (encyclopedia.length === 0) {
+        document.getElementById("title").innerText = "（目前沒有資料）";
+        document.getElementById("description").innerText = "";
+        document.getElementById("image").src = "";
+        updateDropdown();
+        return;
+      }
+      const item = encyclopedia[index];
+      document.getElementById("title").innerText = item.name;
+      document.getElementById("description").innerText = item.description;
+      document.getElementById("image").src = item.image;
+      updateDropdown();
+    }
+
+    function nextPage() {
+      if (index < encyclopedia.length - 1) {
+        index++;
+        showPage();
+      }
+    }
+
+    function prevPage() {
+      if (index > 0) {
+        index--;
+        showPage();
+      }
+    }
+
+    function saveEntry() {
+      const name = document.getElementById("name").value;
+      const desc = document.getElementById("desc").value;
+      const file = document.getElementById("imgInput").files[0];
+
+      if (!name || !desc) {
+        alert("請輸入完整資料！");
+        return;
+      }
+
+      if (editing) {
+        // 修改模式
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = function(e) {
+            encyclopedia[index] = { name: name, description: desc, image: e.target.result };
+            localStorage.setItem("encyclopedia", JSON.stringify(encyclopedia));
+            showPage();
+            resetForm();
+          };
+          reader.readAsDataURL(file);
+        } else {
+          encyclopedia[index].name = name;
+          encyclopedia[index].description = desc;
+          localStorage.setItem("encyclopedia", JSON.stringify(encyclopedia));
+          showPage();
+          resetForm();
+        }
+      } else {
+        // 新增模式
+        if (!file) {
+          alert("請選擇圖片！");
+          return;
+        }
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          encyclopedia.push({ name: name, description: desc, image: e.target.result });
+          localStorage.setItem("encyclopedia", JSON.stringify(encyclopedia));
+          index = encyclopedia.length - 1;
+          showPage();
+          resetForm();
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+
+    function editEntry() {
+      if (encyclopedia.length === 0) return;
+      const item = encyclopedia[index];
+      document.getElementById("name").value = item.name;
+      document.getElementById("desc").value = item.description;
+      document.getElementById("formTitle").innerText = "修改圖鑑";
+      editing = true;
+    }
+
+    function deleteEntry() {
+      if (encyclopedia.length === 0) return;
+      if (!confirm("確定要刪除這個圖鑑嗎？")) return;
+      encyclopedia.splice(index, 1);
+      localStorage.setItem("encyclopedia", JSON.stringify(encyclopedia));
+      if (index > 0) index--;
+      showPage();
+    }
+
+    function resetForm() {
+      document.getElementById("name").value = "";
+      document.getElementById("desc").value = "";
+      document.getElementById("imgInput").value = "";
+      document.getElementById("formTitle").innerText = "新增 / 修改 圖鑑";
+      editing = false;
+    }
+
+    function searchEntry() {
+      const keyword = document.getElementById("searchInput").value.trim();
+      if (!keyword) {
+        alert("請輸入名稱");
+        return;
+      }
+      const foundIndex = encyclopedia.findIndex(item => item.name.includes(keyword)); // 模糊搜尋
+      if (foundIndex !== -1) {
+        index = foundIndex;
+        showPage();
+      } else {
+        alert("找不到該名稱的圖鑑");
+      }
+    }
+
+    function updateDropdown() {
+      const dropdown = document.getElementById("dropdown");
+      dropdown.innerHTML = '<option value="">請選擇圖鑑</option>';
+      encyclopedia.forEach((item, i) => {
+        const option = document.createElement("option");
+        option.value = i;
+        option.textContent = item.name;
+        if (i === index) option.selected = true;
+        dropdown.appendChild(option);
+      });
+    }
+
+    function jumpToEntry() {
+      const dropdown = document.getElementById("dropdown");
+      if (dropdown.value !== "") {
+        index = parseInt(dropdown.value);
+        showPage();
+      }
+    }
+
+    function randomEntry() {
+      if (encyclopedia.length === 0) return;
+      index = Math.floor(Math.random() * encyclopedia.length);
+      showPage();
+      alert("🎲 抽中了：「" + encyclopedia[index].name + "」！");
+    }
+
+    showPage();
+  </script>
+
+</body>
+</html>
